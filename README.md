@@ -19,12 +19,13 @@ https://github.com/AlbertMircea/ROBOT-AUTOMATIZAT-PENTRU-ELIMINAREA-OBSTACOLELOR
 2. Clonează repository-ul:
    ```sh
    git clone https://github.com/AlbertMircea/ROBOT-AUTOMATIZAT-PENTRU-ELIMINAREA-OBSTACOLELOR.git
-3. Deschide Arduino IDE și navighează la File -> Open, apoi selectează fișierul robot-detectare-obstacole.ino din folderul clonat.
+   ```
+3. Deschide Arduino IDE și navighează la File -> Open, apoi selectează fișierul Aleznauer_Albert-Mircea_Aplicatie_Practica_AIA_Licenta.ino din folderul clonat.
 
 ## Pașii de Instalare și Lansare
 1. Conectează placa Arduino la computer folosind un cablu USB.
 2. În Arduino IDE, selectează placa corespunzătoare și portul USB:
-- Navighează la Tools -> Board și selectează tipul de placă Arduino pe care o folosești.
+- Navighează la Tools -> Board și selectează Arduino UNO.
 - Navighează la Tools -> Port și selectează portul corespunzător (de obicei ceva de genul COM3 sau /dev/ttyUSB0).
 3. Apasă butonul Upload (săgeata spre dreapta) din Arduino IDE pentru a încărca codul pe placa Arduino.
 4. După ce încărcarea este completă, deconectează placa Arduino de la computer și conectează bateria de 9V la robot.
