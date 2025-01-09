@@ -1,8 +1,6 @@
 #define newInfra 13
-#define manualOnOff A2
-
-const byte LeftRight = 5;
-const byte UpDown = 9;
+const int trigPin = 10;
+const int echoPin = 11;
 
 int in1 = 2;
 int in2 = 4;
@@ -15,218 +13,184 @@ int enB = 6;
 int speedA = 90;
 int speedB = speedA + 13;
 
-int speedInvarteA = 80;
-int speedInvarteB = 90;
+int speedInvarteA = 85;  // Define missing variables
+int speedInvarteB = 85;
 
-const int trigPin = 10;
-const int echoPin = 11;
-
-const int ledPin = 12;
-
-int infr;
-int newINFR = 0;
+int newINFR;
 long cm;
 int entry = 0;
-byte manualFunction = 0;
+byte autoDone = 0;
+
+int manual = 0;
 
 void setup() {
+    Serial.begin(9600);
+    pinMode(trigPin, OUTPUT);
+    pinMode(echoPin, INPUT);
+    pinMode(newInfra, INPUT);
 
-  Serial.begin(9600);
-  
-  pinMode(LeftRight, INPUT);
-  pinMode(UpDown, INPUT);
-  pinMode(manualOnOff, INPUT);
+    // Initialize motor pins as output
+    pinMode(in1, OUTPUT);
+    pinMode(in2, OUTPUT);
+    pinMode(in3, OUTPUT);
+    pinMode(in4, OUTPUT);
+    pinMode(enA, OUTPUT);
+    pinMode(enB, OUTPUT);
 
-  pinMode(enA, OUTPUT);
-  pinMode(in1, OUTPUT);
-  pinMode(in2, OUTPUT);
-  pinMode(enB, OUTPUT);
-  pinMode(in3, OUTPUT);
-  pinMode(in4, OUTPUT);
-
-  pinMode(newInfra, INPUT);
-
-  pinMode(trigPin, OUTPUT);
-  pinMode(echoPin, INPUT);
-
-  pinMode(ledPin, OUTPUT);
-
-  delay(3000);
+    while (!Serial) {
+        ; // Wait for serial port to connect. Needed for native USB
+    }
 }
 
 void loop() {
-  invarteFata();
-  cm = readUltraSonicSensor();
-  if (cm <= 40) {
-    stop();
-    do
-    {
-      invarteSpate();
-      delay(50);
-      cm = readUltraSonicSensor();
-    }while(cm>40);
-    mergeFata();
-    bool ok = false;
-    while (ok == false) {
-      manualFunction = GetPWM(manualOnOff);
-      if(manualFunction == 10){
-        manualON();
-      }
-      newINFR = digitalRead(newInfra);
-      if (newINFR == LOW) { 
-        stop();
-    	  delay(1000); 
-        entry++;
+  if(autoDone == 0)
+  {
+    invarteSpate();
+    cm = readUltraSonicSensor();
+    if (cm <= 40 && cm != -1) {
+      stop();
+      delay(500);
+      do
+      {
         invarteFata();
-        if(entry == 3){
+        delay(50);
+        cm = readUltraSonicSensor();
+      }while(cm>40 || cm == -1);
+      mergeFata();
+      bool ok = false;
+      while (ok == false) {
+        newINFR = digitalRead(newInfra);
+      Serial.print(newINFR);
+      Serial.print(",");
+      Serial.println(cm);
+        if (newINFR == 0) { 
           stop();
-          digitalWrite(ledPin, HIGH);
-          while(1){
-            manualFunction = GetPWM(manualOnOff);
-            Serial.println(manualFunction);
-            if(manualFunction == 10){
-              manualON();
-            }
+
+    	    delay(1000); 
+          entry++;
+          //invarteSpate();
+          if(entry == 3){
+            stop();
+            autoDone = 1;
+            ok= true;
+          }
+          else
+          {
+          
+            mergeSpate();
+            delay(500);
+            ok = true;
+          }
           }
         }
-        mergeSpate();
-        delay(500);
-        ok = true;
       }
     }
+    else{
+  cm = readUltraSonicSensor();
+        newINFR = digitalRead(newInfra);
+      Serial.print(newINFR);
+      Serial.print(",");
+      Serial.println(cm);
+      delay(1000);
+
+  // Check if a command is available and process it immediately
+  if (Serial.available() > 0) {
+      String command = Serial.readStringUntil('\n');  // Read command from serial
+      command.trim();  // Remove any extra whitespace or newline characters
+
+      // Process the command
+      if (command == "FORWARD") {
+          mergeFata();
+          Serial.println("ACK: FORWARD");
+      } else if (command == "BACKWARD") {
+          mergeSpate();
+          Serial.println("ACK: BACKWARD");
+      } else if (command == "LEFT") {
+          invarteFata();
+          Serial.println("ACK: LEFT");
+      } else if (command == "RIGHT") {
+          invarteSpate();
+          Serial.println("ACK: RIGHT");
+      } else if (command == "STOP") {
+          stop();
+          Serial.println("ACK: STOP");
+      } else if (command == "RESET") {
+          stop();
+          autoDone = 0;
+          entry = 0;
+          Serial.println("ACK: RESET");
+      } else {
+          Serial.println("ERROR: UNKNOWN COMMAND");
+      }
   }
+    }
 }
 
-
-void manualON()
-{
-  while(1)
-  {
-    byte leftRight = GetPWM(LeftRight);
-    byte upDown = GetPWM(UpDown);
-    byte onOff = GetPWM(manualOnOff);
-    
-    if(onOff == 5)
-      break;
-    
-    if((leftRight==7)&&(upDown==7))
-    {
-      stop();
-    }
-    
-    else if(upDown>7)
-    {
-      mergeFata();
-    }
-    else if(upDown<7)
-    {
-      mergeSpate();
-    }
-    else if(leftRight>7)
-    {
-      invarteSpateManual();
-    }
-    else if(leftRight<7)
-    {
-      invarteFataManual();
-    }
-    else
-    {
-      stop();
-    }
-    delay(5);
-  }
-}
-
-byte GetPWM(byte pin)
-{
-  unsigned long highTime = pulseIn(pin, HIGH, 50000UL);  
-  unsigned long lowTime = pulseIn(pin, LOW, 50000UL);  
-
-  if (highTime == 0 || lowTime == 0)
-    return digitalRead(pin) ? 100 : 0;  
-
-  return (100 * highTime) / (highTime + lowTime);  
-}
 
 
 void mergeFata() {
-  digitalWrite(in1, LOW);
-  digitalWrite(in2, HIGH);
-  digitalWrite(in3, LOW);
-  digitalWrite(in4, HIGH);
-  analogWrite(enA, speedA);
-  analogWrite(enB, speedB);
+    digitalWrite(in1, LOW);
+    digitalWrite(in2, HIGH);
+    digitalWrite(in3, LOW);
+    digitalWrite(in4, HIGH);
+    analogWrite(enA, speedA);
+    analogWrite(enB, speedB);
 }
 
 void stop() {
-  digitalWrite(in1, LOW);
-  digitalWrite(in2, LOW);
-  digitalWrite(in3, LOW);
-  digitalWrite(in4, LOW);
-  analogWrite(enA, 0);
-  analogWrite(enB, 0);
+    digitalWrite(in1, LOW);
+    digitalWrite(in2, LOW);
+    digitalWrite(in3, LOW);
+    digitalWrite(in4, LOW);
+    analogWrite(enA, 0);
+    analogWrite(enB, 0);
 }
 
 void invarteFata() {
-  digitalWrite(in1, LOW);
-  digitalWrite(in2, HIGH);
-  digitalWrite(in3, HIGH);
-  digitalWrite(in4, LOW);
-  analogWrite(enA, speedInvarteA);
-  analogWrite(enB, speedInvarteB);
-}
-void invarteFataManual() {
-  digitalWrite(in1, LOW);
-  digitalWrite(in2, HIGH);
-  digitalWrite(in3, HIGH);
-  digitalWrite(in4, LOW);
-  analogWrite(enA, 85);
-  analogWrite(enB, 85);
+    digitalWrite(in1, LOW);
+    digitalWrite(in2, HIGH);
+    digitalWrite(in3, HIGH);
+    digitalWrite(in4, LOW);
+    analogWrite(enA, speedInvarteA);
+    analogWrite(enB, speedInvarteB);
 }
 
 void invarteSpate() {
-
-  digitalWrite(in1, HIGH);
-  digitalWrite(in2, LOW);
-  digitalWrite(in3, LOW);
-  digitalWrite(in4, HIGH);
-  analogWrite(enA, speedInvarteA);
-  analogWrite(enB, speedInvarteB);
-}
-void invarteSpateManual() {
-
-  digitalWrite(in1, HIGH);
-  digitalWrite(in2, LOW);
-  digitalWrite(in3, LOW);
-  digitalWrite(in4, HIGH);
-  analogWrite(enA, 85);
-  analogWrite(enB, 85);
+    digitalWrite(in1, HIGH);
+    digitalWrite(in2, LOW);
+    digitalWrite(in3, LOW);
+    digitalWrite(in4, HIGH);
+    analogWrite(enA, speedInvarteA);
+    analogWrite(enB, speedInvarteB);
 }
 
 void mergeSpate() {
-  digitalWrite(in1, HIGH);
-  digitalWrite(in2, LOW);
-  digitalWrite(in3, HIGH);
-  digitalWrite(in4, LOW);
-  analogWrite(enA, speedA);
-  analogWrite(enB, speedB);
+    digitalWrite(in1, HIGH);
+    digitalWrite(in2, LOW);
+    digitalWrite(in3, HIGH);
+    digitalWrite(in4, LOW);
+    analogWrite(enA, speedA);
+    analogWrite(enB, speedB);
 }
 
 long readUltraSonicSensor() {
-  long duration, inches, cm;
-  digitalWrite(trigPin, LOW);
-  delayMicroseconds(2);
-  digitalWrite(trigPin, HIGH);
-  delayMicroseconds(10);
-  digitalWrite(trigPin, LOW);
+    long duration, cm;
+    digitalWrite(trigPin, LOW);
+    delayMicroseconds(2);
+    digitalWrite(trigPin, HIGH);
+    delayMicroseconds(10);
+    digitalWrite(trigPin, LOW);
 
-  duration = pulseIn(echoPin, HIGH);
-  cm = microsecondsToCentimeters(duration);
+    duration = pulseIn(echoPin, HIGH, 30000);  // 30ms timeout
+    if (duration == 0) {
+        // Timeout occurred, return a default value
+        return -1;
+    }
+    cm = microsecondsToCentimeters(duration);
 
-  return cm;
+    return cm;
 }
 
 long microsecondsToCentimeters(long microseconds) {
-  return microseconds / 29 / 2;
+    return microseconds / 29 / 2;
 }
